@@ -1,14 +1,23 @@
 from fastapi import FastAPI, UploadFile, Form
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
+
+
 import os
 import json
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 os.makedirs("storage", exist_ok=True)
 
 open("storage/files.json", "a").close()
-
 def loadFiles():
     try:
         return json.load(open("storage/files.json", "r"))
@@ -37,13 +46,24 @@ def uploadFile(file: UploadFile, username: str = Form()):
 @app.get("/files")
 def getFiles(username: str):
     files = loadFiles()
+    userFiles = []
     for i in range(len(files)):
         if files[i]["user"] == username:
-            files.append(files[i])
-    return files
+            userFiles.append(files[i])
+    return userFiles
 
 
 @app.get("/download/{filename}")
 def downloadFile(filename: str):
     return FileResponse(f"storage/{filename}", media_type="application/octet-stream", filename=filename)
 
+@app.get("/delete/{filename}")
+def deleteFile(filename: str):
+    os.remove(f"storage/{filename}")
+    files = loadFiles()
+    for i in range(len(files)):
+        if files[i]["file"] == filename:
+            del files[i]
+            break
+    saveFiles(files)
+    return({"status": "ok"})
